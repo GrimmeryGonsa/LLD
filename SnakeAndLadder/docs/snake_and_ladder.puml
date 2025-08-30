@@ -1,0 +1,150 @@
+@startuml SnakeAndLadder
+title Snake & Ladder - Class Diagram
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+
+package "domain" {
+  class Player {
+    - UUID playerId
+    - String playerName
+    + Player(String)
+    + UUID getPlayerId()
+    + String getPlayerName()
+  }
+
+  enum CellType {
+    SNAKE
+    LADDER
+    PLAIN
+  }
+
+  class Cell {
+    - int index
+    - int jumpTarget
+    - CellType type
+    - List<Player> occupants
+    + int getIndex()
+    + int getJumpTarget()
+    + void setJumpTarget(int)
+    + List<Player> getOccupants()
+  }
+
+  class Board {
+    - Cell[] cells
+    - Map<UUID,Integer> positions
+    + Board(int)
+    + void applyJumps(int[][])
+    + void placePlayersAtStart(List<Player>)
+    + void addPlayer(Player,int)
+    + void removePlayer(Player,int)
+    + int getSize()
+    + Cell getCell(int)
+    + int getPositionOf(Player)
+    + List<int[]> getJumpsSnapshot()
+    + Map<UUID,Integer> getPositionsSnapshot()
+  }
+
+  class Rules {
+    - boolean exactFinish
+    - boolean chainedJumps
+    + Rules(boolean, boolean)
+    + static Rules standard()
+    + boolean isExactFinish()
+    + boolean isChainedJumps()
+  }
+
+  class BoardSnapshot {
+    - int size
+    - List<int[]> jumps
+    - Map<String,Integer> positionsByPlayerName
+    + int getSize()
+    + List<int[]> getJumps()
+    + Map<String,Integer> getPositionsByPlayerName()
+  }
+
+  class Message {
+    - String message
+    - boolean isGameFinished
+    + String getMessage()
+    + boolean isGameFinished()
+  }
+}
+
+package "service" {
+  class GameManagementService {
+    - GameRepository repository
+    - Rules rules
+    + GameManagementService(GameRepository)
+    + GameManagementService(GameRepository, Rules)
+    + void initiateGame(List<Player>, int, int, int)
+    + BoardSnapshot getBoardSnapshot()
+    + Message makeMove(Player)
+  }
+
+  class BoardBuilder {
+    - PairGenerator pairGenerator
+    + BoardBuilder(PairGenerator)
+    + Board build(int, int, int, List<Player>)
+  }
+
+  class DiceService {
+    {static} + int roll(int)
+  }
+}
+
+package "repository" {
+  interface GameRepository {
+    + void saveState(Board)
+    + Board getState()
+  }
+
+  class GameStateRepository implements GameRepository {
+    - Board board
+    + void saveState(Board)
+    + Board getState()
+  }
+}
+
+package "util" {
+  interface PairGenerator {
+    + int[] randomIncreasingPair(int, int)
+  }
+
+  class ThreadLocalRandomPairGenerator implements PairGenerator {
+    + int[] randomIncreasingPair(int, int)
+  }
+}
+
+package "controller" {
+  class ConsoleGameController {
+    - GameManagementService service
+    + ConsoleGameController(GameManagementService)
+    + List<Player> createPlayers()
+    + void run()
+  }
+}
+
+class Main {
+  + static void main(String[])
+}
+
+"ConsoleGameController" --> "GameManagementService" : uses
+"GameManagementService" --> "GameRepository" : depends on
+"GameManagementService" --> "Rules" : uses
+"GameManagementService" --> "BoardSnapshot" : returns
+"GameManagementService" ..> "Board" : manipulates
+"GameManagementService" ..> "DiceService" : rolls
+"BoardBuilder" --> "PairGenerator" : uses
+"BoardBuilder" ..> "Board" : builds
+"GameStateRepository" ..|> "GameRepository"
+"ThreadLocalRandomPairGenerator" ..|> "PairGenerator"
+"Board" o-- "Cell" : contains
+"Board" o-- "Player" : positions
+"Cell" o-- "Player" : occupants
+Main --> ConsoleGameController : composes
+Main ..> GameManagementService
+Main ..> GameRepository
+
+@enduml
+
